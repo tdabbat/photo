@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Защищенная загрузка фото</title>
+    <style>
+        :root {
+            --color-primary: #2180A7;
+            --color-primary-hover: #1d6e8b;
+            --color-bg: #f5f5f5;
+            --color-surface: #ffffff;
+            --color-text: #1a1a1a;
+            --color-error: #c01527;
+            --color-success: #208080;
+        }
+#captureButton {
+    display: none;
+}
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: var(--color-surface);
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin: 0 0 10px 0;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        #video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: 500;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--color-primary-hover);
+        }
+
+        .btn-primary:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background-color: #e0e0e0;
+            color: var(--color-text);
+        }
+
+        .btn-secondary:hover {
+            background-color: #d0d0d0;
+        }
+
+        .preview-container {
+            margin-bottom: 20px;
+        }
+
+        #preview {
+            width: 100%;
+            border-radius: 8px;
+            display: none;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .status.error {
+            background-color: rgba(192, 21, 47, 0.1);
+            color: var(--color-error);
+            border: 1px solid var(--color-error);
+            display: block;
+        }
+
+        .status.success {
+            background-color: rgba(32, 128, 128, 0.1);
+            color: var(--color-success);
+            border: 1px solid var(--color-success);
+            display: block;
+        }
+
+        .status.info {
+            background-color: rgba(33, 128, 167, 0.1);
+            color: var(--color-primary);
+            border: 1px solid var(--color-primary);
+            display: block;
+        }
+
+        .info-box {
+            background-color: #f0f7ff;
+            border-left: 4px solid var(--color-primary);
+            padding: 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            color: #1a4d6b;
+        }
+
+        .progress {
+            width: 100%;
+            height: 4px;
+            background-color: #e0e0e0;
+            border-radius: 2px;
+            overflow: hidden;
+            display: none;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background-color: var(--color-primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📷 Защищенная загрузка фото</h1>
+        <p class="subtitle">Снимите фото только что - без выбора из галереи</p>
+
+        <div class="info-box">
+            ℹ️ Фото будет датировано точным временем получения в Google Drive
+        </div>
+
+        <div class="upload-url-group">
+            <label for="uploadUrl">Google Apps Script URL:</label>
+            <input 
+                type="text" 
+                id="uploadUrl" 
+                placeholder="https://script.googleapis.com/macros/d/..."
+                value="https://script.google.com/macros/s/AKfycbwmqTJUk2rIK3dtYLRKa8CXgyI5ebeD50L0DsBQ-UYLmdYdsfqQ2h9Q1Za3Gt3JI6Mo/exec"
+            >
+        </div>
+
+        <div id="status"></div>
+
+        <div class="progress" id="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+
+        <div class="video-container" id="videoContainer">
+            <video id="video" autoplay playsinline></video>
+        </div>
+
+        <div class="preview-container">
+            <img id="preview" alt="Превью фото">
+        </div>
+
+        <div class="button-group" id="cameraButtonGroup">
+            <button class="btn-primary" id="startCamera">Открыть камеру</button>
+        </div>
+
+        <div class="button-group" id="captureButtonGroup" class="hidden">
+            <button class="btn-primary" id="captureButton">📸 Снять фото</button>
+            <button class="btn-secondary" id="stopCamera">Закрыть</button>
+        </div>
+
+        <div class="button-group" id="confirmButtonGroup" class="hidden">
+            <button class="btn-primary" id="uploadButton">📸 Снять и загрузить</button>
+            <button class="btn-secondary" id="retakeButton">Снять ещё</button>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const preview = document.getElementById('preview');
+        const status = document.getElementById('status');
+        const uploadUrl = document.getElementById('uploadUrl');
+        const progress = document.getElementById('progress');
+        const progressBar = document.getElementById('progressBar');
+
+        const cameraButtonGroup = document.getElementById('cameraButtonGroup');
+        const captureButtonGroup = document.getElementById('captureButtonGroup');
+        const confirmButtonGroup = document.getElementById('confirmButtonGroup');
+
+        const startCameraBtn = document.getElementById('startCamera');
+        const captureBtn = document.getElementById('captureButton');
+        const stopCameraBtn = document.getElementById('stopCamera');
+        const uploadBtn = document.getElementById('uploadButton');
+        const retakeBtn = document.getElementById('retakeButton');
+
+        let stream = null;
+        let photoBlob = null;
+
+        function showStatus(message, type = 'info') {
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+
+        startCameraBtn.addEventListener('click', async () => {
+            try {
+                showStatus('Запрашиваю доступ к камере...', 'info');
+                
+                const constraints = {
+                    video: {
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: false
+                };
+
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+
+                cameraButtonGroup.classList.add('hidden');
+                captureButtonGroup.classList.add('hidden');
+                confirmButtonGroup.classList.remove('hidden');
+                preview.style.display = 'none';
+                status.className = 'status';
+                status.textContent = '';
+
+            } catch (error) {
+                if (error.name === 'NotAllowedError') {
+                    showStatus('❌ Вы отказали в доступе к камере. Проверьте разрешения.', 'error');
+                } else if (error.name === 'NotFoundError') {
+                    showStatus('❌ Камера не найдена на этом устройстве.', 'error');
+                } else {
+                    showStatus('❌ Ошибка доступа к камере: ' + error.message, 'error');
+                }
+            }
+        });
+
+// Снять фото (отключено, всё делаем по кнопке загрузки)
+captureBtn.addEventListener('click', () => {
+    showStatus('Используйте кнопку "Снять и загрузить".', 'info');
+});
+
+
+function showBlobInfo(blob) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+    };
+    reader.readAsDataURL(blob);
+
+    captureButtonGroup.classList.add('hidden');
+    confirmButtonGroup.classList.remove('hidden');
+    const sizeKB = Math.round(blob.size / 1024);
+    showStatus(`✓ Фото готово (${sizeKB} KB)`, 'success');
+}
+
+
+        stopCameraBtn.addEventListener('click', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            video.srcObject = null;
+            cameraButtonGroup.classList.remove('hidden');
+            captureButtonGroup.classList.add('hidden');
+            confirmButtonGroup.classList.add('hidden');
+            status.className = 'status';
+            status.textContent = '';
+        });
+
+        retakeBtn.addEventListener('click', () => {
+            photoBlob = null;
+            preview.style.display = 'none';
+            confirmButtonGroup.classList.add('hidden');
+            captureButtonGroup.classList.remove('hidden');
+            status.className = 'status';
+            status.textContent = '';
+        });
+
+    uploadBtn.addEventListener('click', async () => {
+    console.log('🚀 Кнопка Снять и загрузить');
+
+    const url = uploadUrl.value.trim();
+    if (!url) {
+        showStatus('❌ Укажите URL Google Apps Script', 'error');
+        return;
+    }
+
+    if (!video.videoWidth || !video.videoHeight) {
+        showStatus('❌ Камера еще не готова. Откройте камеру и подождите секунду.', 'error');
+        return;
+    }
+
+    uploadBtn.disabled = true;
+    progress.style.display = 'block';
+    progressBar.style.width = '0%';
+
+    try {
+        showStatus('📸 Снимаю фото...', 'info');
+
+        // 1) Снять кадр с камеры
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        // 2) Получить blob (можно оставить ваш коэффициент сжатия)
+        canvas.toBlob(async (blob) => {
+            if (!blob) {
+                showStatus('❌ Не удалось получить изображение', 'error');
+                uploadBtn.disabled = false;
+                progress.style.display = 'none';
+                return;
+            }
+
+            console.log('Исходный размер:', (blob.size / 1024 / 1024).toFixed(2), 'MB');
+
+            // Превью чисто информативно
+            const readerPreview = new FileReader();
+            readerPreview.onload = (e) => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            readerPreview.readAsDataURL(blob);
+
+            // 3) Отправка в Google Script как текст (как мы настроили вчера)
+            showStatus('⬆️ Загружаю фото в Google Drive...', 'info');
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Clean = e.target.result.split(',')[1]; // только base64
+                console.log('📷 Base64 чистый размер:', base64Clean.length);
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: base64Clean
+                    });
+
+                    console.log('📥 Ответ:', response.status);
+                    const result = await response.json();
+                    console.log('✅ Результат:', result);
+
+                    if (result.success) {
+                        showStatus('✓ Фото снято и загружено в Google Drive!', 'success');
+                        progress.style.display = 'none';
+                    } else {
+                        showStatus('❌ Ошибка сервера: ' + (result.error || 'неизвестно'), 'error');
+                    }
+                } catch (err) {
+                    console.log('❌ Fetch ошибка:', err);
+                    showStatus('❌ Ошибка загрузки: ' + err.message, 'error');
+                    progress.style.display = 'none';
+                }
+
+                uploadBtn.disabled = false;
+            };
+
+            reader.readAsDataURL(blob);
+        }, 'image/jpeg', 0.85);
+
+    } catch (error) {
+        console.log('💥 Общая ошибка:', error);
+        showStatus('❌ Ошибка: ' + error.message, 'error');
+        uploadBtn.disabled = false;
+        progress.style.display = 'none';
+    }
+});
+
+
+    </script>
+</body>
+</html>
